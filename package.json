@@ -1,0 +1,38 @@
+{
+  "name": "windanvil-verifier",
+  "version": "0.1.0",
+  "description": "Independent fail-closed verification of software supply-chain claims.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "main": "./index.js",
+  "bin": {
+    "windanvil-verifier": "./cli.js"
+  },
+  "files": [
+    "index.js",
+    "cli.js",
+    "README.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "pack:check": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "windanvil-assurance-record": "git+https://github.com/mcc0nnell/windanvil-assurance-record.git#92b8c407aa41a0203bfcaadc6b6344bcce9602f8"
+  },
+  "keywords": [
+    "software-supply-chain",
+    "slsa",
+    "in-toto",
+    "cyclonedx",
+    "spdx",
+    "cosign",
+    "provenance",
+    "assurance"
+  ]
+}
