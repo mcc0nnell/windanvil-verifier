@@ -51,8 +51,13 @@ source -> build -> artifact
                   WindAnvil Assurance Record
 ```
 
-The first implementation supports SLSA provenance v1 and v0.2 material binding,
-CycloneDX/SPDX recognition, and Cosign verification of SLSA provenance.
+The first implementation supports SLSA provenance v1/v0.2 material binding,
+the openCode Source Provenance Attestation Service commit-binding model,
+CycloneDX/SPDX recognition, and both keyless and public-key Cosign verification.
+
+The openCode path is tested against the service's public schema and documented
+verification boundary. This project is not affiliated with ZenDiS, openCode, or
+DevGuard.
 ## Install
 
 Node.js 20 or later is required.
@@ -67,8 +72,9 @@ The current package pins
 to a specific Git commit so the evidence model used by a verifier build is
 reproducible.
 
-For signed OCI provenance, install `cosign` and provide a keyless certificate
-identity and issuer in the input bundle.
+For signed OCI provenance, install `cosign`. The verifier supports either a
+keyless certificate identity/issuer pair or a public key plus predicate type.
+The latter matches openCode's Source Provenance Attestation Service boundary.
 
 ## CLI
 
@@ -106,6 +112,11 @@ A minimal bundle looks like:
   }
 }
 ```
+
+For openCode's keyed Source Provenance Attestation Service, start from
+[`examples/opencode-bundle.example.json`](examples/opencode-bundle.example.json)
+and use the operator-published `cosign.pub`. Keep the predicate type explicit
+because the service schema is versioned.
 
 When `cosign` verification succeeds, the verifier evaluates the provenance
 statement returned by that verification command. It does not substitute an

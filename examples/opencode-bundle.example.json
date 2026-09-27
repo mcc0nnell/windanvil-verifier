@@ -1,0 +1,24 @@
+{
+  "artifact": {
+    "kind": "oci_artifact",
+    "name": "registry.example/app",
+    "digest": "sha256:<artifact-digest>"
+  },
+  "expectedSource": {
+    "uri": "https://gitlab.opencode.de/example/project",
+    "revision": "<git-commit-hash>"
+  },
+  "sboms": [
+    {
+      "bomFormat": "CycloneDX",
+      "specVersion": "1.6",
+      "components": []
+    }
+  ],
+  "cosign": {
+    "reference": "registry.example/app@sha256:<artifact-digest>",
+    "publicKey": "./cosign.pub",
+    "ignoreTransparencyLog": true,
+    "predicateType": "https://gitlab.opencode.de/open-code/badgebackend/source-provenance-attestation-service/schema/golang/source-provenance-report-v1"
+  }
+}

@@ -82,9 +82,18 @@ function provenanceMaterials(statement) {
 
 export function sourceIsMaterial(statement, expectedSource) {
   if (!expectedSource || typeof expectedSource.uri !== "string") return false;
+
+  const openCodeCommit = statement?.predicate?.sourceDefinition?.sourceControl?.commit;
+  if (openCodeCommit?.uri) {
+    if (openCodeCommit.uri !== expectedSource.uri) return false;
+    const wantedRevision = expectedSource.revision ?? expectedSource.digest;
+    return wantedRevision ? openCodeCommit.hash === wantedRevision : true;
+  }
+
   const wantedDigest = expectedSource.digest
     ? normalizeSha256(expectedSource.digest)
     : null;
+  if (expectedSource.digest && !wantedDigest) return false;
 
   return provenanceMaterials(statement).some((material) => {
     if (material?.uri !== expectedSource.uri) return false;
@@ -143,7 +152,7 @@ export function verifySupplyChainBundle(bundle, options = {}) {
       ? assertion("artifact_bound", "PASS", "artifact digest is a provenance subject")
       : assertion("artifact_bound", statement ? "FAIL" : "BLOCKED", "artifact digest not bound by provenance"),
     statement && sourceIsMaterial(statement, bundle.expectedSource)
-      ? assertion("source_bound", "PASS", "expected source is a provenance material")
+      ? assertion("source_bound", "PASS", "expected source is bound by provenance")
       : assertion("source_bound", statement ? "FAIL" : "BLOCKED", "expected source not bound by provenance"),
     sbomKinds.length > 0
       ? assertion("sbom_present", "PASS", `recognized SBOM: ${sbomKinds.map((x) => x.format).join(",")}`)
@@ -222,26 +231,36 @@ function parseCosignOutput(stdout) {
   }
   return null;
 }
-export function verifyCosignProvenance({
+export function verifyCosignAttestation({
   reference,
+  predicateType = "slsaprovenance",
+  publicKey,
   certificateIdentity,
   certificateIssuer,
+  ignoreTransparencyLog = false,
   cosign = "cosign",
   runner = execFileSync,
 }) {
   if (!reference) throw new TypeError("reference is required");
-  if (!certificateIdentity || !certificateIssuer) {
-    return { verified: null, statement: null, reason: "certificate identity and issuer are required" };
+
+  const args = ["verify-attestation"];
+  if (publicKey) {
+    args.push("--key", publicKey);
+    if (ignoreTransparencyLog) args.push("--insecure-ignore-tlog");
+  } else if (certificateIdentity && certificateIssuer) {
+    args.push(
+      "--certificate-identity", certificateIdentity,
+      "--certificate-oidc-issuer", certificateIssuer,
+    );
+  } else {
+    return {
+      verified: null,
+      statement: null,
+      reason: "public key or certificate identity/issuer is required",
+    };
   }
 
-  const args = [
-    "verify-attestation",
-    "--type", "slsaprovenance",
-    "--certificate-identity", certificateIdentity,
-    "--certificate-oidc-issuer", certificateIssuer,
-    "--output", "json",
-    reference,
-  ];
+  args.push("--type", predicateType, "--output", "json", reference);
 
   try {
     const stdout = runner(cosign, args, {
@@ -268,5 +287,7 @@ export function verifyCosignProvenance({
     };
   }
 }
+
+export const verifyCosignProvenance = verifyCosignAttestation;
 
 export const DEFAULT_REQUIRED_ASSERTIONS = DEFAULT_REQUIRED;

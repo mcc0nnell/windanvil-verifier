@@ -93,3 +93,43 @@ test("missing cosign is a blocked capability, not a failed signature", () => {
   assert.equal(result.verified, null);
   assert.match(result.reason, /unavailable/);
 });
+
+test("openCode source-provenance report binds repository commit", () => {
+  const revision = "c".repeat(40);
+  const openCode = {
+    _type: "https://in-toto.io/Statement/v1",
+    subject: [{ name: "example", digest: { sha256: ARTIFACT } }],
+    predicateType: "https://gitlab.opencode.de/open-code/badgebackend/source-provenance-attestation-service/schema/golang/v1/source-provenance-report",
+    predicate: {
+      version: "1.1.0",
+      sourceDefinition: {
+        sourceControl: {
+          commit: { uri: "https://gitlab.opencode.de/example/project", hash: revision },
+        },
+      },
+    },
+  };
+  const result = verifySupplyChainBundle(bundle({
+    expectedSource: { uri: "https://gitlab.opencode.de/example/project", revision },
+    provenance: openCode,
+  }));
+  assert.equal(result.verdict, "PASS");
+});
+
+test("Cosign public-key mode matches the openCode verification boundary", () => {
+  const payload = Buffer.from(JSON.stringify(provenance())).toString("base64");
+  const runner = (_bin, args) => {
+    assert.deepEqual(args.slice(0, 5), [
+      "verify-attestation", "--key", "./cosign.pub", "--insecure-ignore-tlog", "--type",
+    ]);
+    return JSON.stringify([{ payload }]);
+  };
+  const result = verifyCosignProvenance({
+    reference: "registry.invalid/app@sha256:" + ARTIFACT,
+    publicKey: "./cosign.pub",
+    ignoreTransparencyLog: true,
+    predicateType: "https://gitlab.opencode.de/example/source-provenance",
+    runner,
+  });
+  assert.equal(result.verified, true);
+});
