@@ -15,6 +15,7 @@ const DEFAULT_REQUIRED = Object.freeze([
   "artifact_bound",
   "source_bound",
   "sbom_present",
+  "sbom_artifact_bound",
   "provenance_signature",
 ]);
 
@@ -114,6 +115,30 @@ export function detectSbom(value) {
   return null;
 }
 
+export function sbomArtifactBinding(value, artifactDigest) {
+  const expected = normalizeSha256(artifactDigest);
+  if (!expected) return { verdict: "BLOCKED", reason: "artifact digest is not canonical sha256" };
+
+  const statement = unwrapStatement(value);
+  const candidate = statement?.predicate ?? value;
+  if (!candidate || typeof candidate !== "object") {
+    return { verdict: "BLOCKED", reason: "SBOM is not readable" };
+  }
+
+  if (candidate.bomFormat === "CycloneDX") {
+    const version = normalizeSha256(candidate.metadata?.component?.version);
+    if (!version) {
+      return { verdict: "BLOCKED", reason: "CycloneDX SBOM does not bind a sha256 artifact version" };
+    }
+    if (version !== expected) {
+      return { verdict: "FAIL", reason: "CycloneDX SBOM binds a different artifact digest" };
+    }
+    return { verdict: "PASS", reason: "CycloneDX SBOM binds the evaluated artifact digest" };
+  }
+
+  return { verdict: "BLOCKED", reason: "SBOM artifact binding is not implemented for this format" };
+}
+
 function assertion(id, verdict, reason) {
   return { id, verdict, reason };
 }
@@ -144,6 +169,11 @@ export function verifySupplyChainBundle(bundle, options = {}) {
   const statement = unwrapStatement(bundle.provenance);
   const sboms = Array.isArray(bundle.sboms) ? bundle.sboms : [];
   const sbomKinds = sboms.map(detectSbom).filter(Boolean);
+  const sbomBindingResults = sboms.map((item) => sbomArtifactBinding(item, artifactDigest));
+  const sbomBinding =
+    sbomBindingResults.find((item) => item.verdict === "PASS") ??
+    sbomBindingResults.find((item) => item.verdict === "FAIL") ??
+    { verdict: "BLOCKED", reason: "no SBOM artifact binding could be established" };
   const assertions = [
     statement
       ? assertion("provenance_present", "PASS", "SLSA/in-toto statement present")
@@ -157,6 +187,7 @@ export function verifySupplyChainBundle(bundle, options = {}) {
     sbomKinds.length > 0
       ? assertion("sbom_present", "PASS", `recognized SBOM: ${sbomKinds.map((x) => x.format).join(",")}`)
       : assertion("sbom_present", "BLOCKED", "no recognized CycloneDX or SPDX SBOM"),
+    assertion("sbom_artifact_bound", sbomBinding.verdict, sbomBinding.reason),
     signatureAssertion(bundle.verification),
   ];
   const required = options.requiredAssertions ?? bundle.requiredAssertions ?? DEFAULT_REQUIRED;
@@ -170,7 +201,17 @@ export function verifySupplyChainBundle(bundle, options = {}) {
     expectedSource: bundle.expectedSource,
     requiredAssertions: [...required],
   };
-  const observationDigests = assertions.map((item) => digestOf(item)).sort();
+  const provenanceDigest = statement ? digestOf(statement) : null;
+  const sbomDigests = sboms.map((item) => digestOf(item)).sort();
+  const verificationDigest = bundle.verification ? digestOf(bundle.verification) : null;
+  const observationDigests = [
+    ...assertions.map((item) => digestOf({ kind: "assertion", value: item })),
+    ...(provenanceDigest ? [digestOf({ kind: "provenance_statement", digest: provenanceDigest })] : []),
+    ...sbomDigests.map((digest, index) => digestOf({ kind: "sbom", index, digest })),
+    ...(verificationDigest
+      ? [digestOf({ kind: "verification_metadata", digest: verificationDigest })]
+      : []),
+  ].sort();
   const subject = {
     kind: bundle.artifact?.kind ?? "oci_artifact",
     identity: {
@@ -209,6 +250,12 @@ export function verifySupplyChainBundle(bundle, options = {}) {
     reason: evaluation.reason,
     assertions,
     sboms: sbomKinds,
+    evidenceDigests: {
+      provenance: provenanceDigest,
+      sboms: sbomDigests,
+      verification: verificationDigest,
+    },
+    verification: bundle.verification ?? null,
     record,
   };
 }

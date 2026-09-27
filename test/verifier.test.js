@@ -30,7 +30,12 @@ function bundle(overrides = {}) {
     artifact: { kind: "oci_artifact", name: "example.invalid/app", digest: ARTIFACT },
     expectedSource: { uri: SOURCE_URI, digest: SOURCE },
     provenance: provenance(),
-    sboms: [{ bomFormat: "CycloneDX", specVersion: "1.6", components: [] }],
+    sboms: [{
+      bomFormat: "CycloneDX",
+      specVersion: "1.6",
+      metadata: { component: { type: "container", version: `sha256:${ARTIFACT}` } },
+      components: [],
+    }],
     verification: { provenanceSignature: true },
     generatedAt: "2026-09-27T03:00:00Z",
     ...overrides,
@@ -40,7 +45,7 @@ function bundle(overrides = {}) {
 test("complete independently verified evidence passes", () => {
   const result = verifySupplyChainBundle(bundle());
   assert.equal(result.verdict, "PASS");
-  assert.equal(result.assertions.length, 5);
+  assert.equal(result.assertions.length, 6);
   assert.equal(verifyAssuranceRecordDigest(result.record), true);
   assert.deepEqual(result.record.evidence.artifactDigests, [`sha256:${ARTIFACT}`]);
 });
@@ -132,4 +137,25 @@ test("Cosign public-key mode matches the openCode verification boundary", () => 
     runner,
   });
   assert.equal(result.verified, true);
+});
+
+test("CycloneDX bound to another artifact fails", () => {
+  const input = bundle();
+  input.sboms[0].metadata.component.version = "sha256:" + "d".repeat(64);
+  const result = verifySupplyChainBundle(input);
+  assert.equal(result.verdict, "FAIL");
+  assert.match(result.reason, /sbom_artifact_bound/);
+});
+
+test("evidence digests bind provenance, SBOM, and verification metadata", () => {
+  const input = bundle();
+  const result = verifySupplyChainBundle(input);
+  assert.ok(result.evidenceDigests.provenance);
+  assert.equal(result.evidenceDigests.sboms.length, 1);
+  assert.ok(result.evidenceDigests.verification);
+  const mutated = bundle();
+  mutated.sboms[0].components.push({ type: "library", name: "different" });
+  const changed = verifySupplyChainBundle(mutated);
+  assert.notEqual(changed.evidenceDigests.sboms[0], result.evidenceDigests.sboms[0]);
+  assert.notEqual(changed.record.digest, result.record.digest);
 });

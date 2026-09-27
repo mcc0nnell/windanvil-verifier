@@ -1,0 +1,57 @@
+{
+  "authority": {
+    "externalInstrumentsAuthoritative": false,
+    "policy": "windanvil",
+    "record": "windanvil",
+    "verdict": "windanvil"
+  },
+  "digest": "sha256:9e25145b4e60567316c767312dab701b15f97a1a5eb88af895abc72c67441630",
+  "evidence": {
+    "artifactDigests": [
+      "sha256:06cee1821dcf9ad397f999cf1a4d8b89f2d696da9e52f7b819607fbff1b82664"
+    ],
+    "observationDigests": [
+      "sha256:01d5ee5791199c108948331abf41f8a3f2e6969520e1551b89408a60a42efbc7",
+      "sha256:056c2dab8da2faadcb74e7db27c665ddc18586a294eb6928c1b95129612e3f46",
+      "sha256:29142543474d4ae29e226ade90f336d0fc0ca7cdec64a275ef404f45d33535fb",
+      "sha256:3284590e969c1b4b9aabb0f44d0f2ea246ca89ebbfb67a88ee452c3babc5a481",
+      "sha256:53912be231a1f5eae3edab76e448ee8d1f801cda57625a37f00505699dab4349",
+      "sha256:9b4c4e440a62469541971b8ea58e0a00f93774312f33569d624545c38d325589",
+      "sha256:d9065da43e95bf71efd674d0db42cec25bf819ef9fbd1ac6353b0093bf884d30",
+      "sha256:f38fd7eac6502f64229b2949a47ce40b17d89b8a58a960b10bf407bcdd55601c",
+      "sha256:fbb6582bd636e0bcdea366c80a85c6fe374178d1e545b4bffa498031d9703655"
+    ]
+  },
+  "generatedAt": "2026-09-27T03:30:00Z",
+  "kind": "windanvil.assurance-record",
+  "oscal": {
+    "authoritative": false,
+    "instrument": "compliance-trestle",
+    "mode": "validate_and_transform",
+    "role": "oscal_validation_instrument",
+    "targetModel": "assessment-results"
+  },
+  "plan": {
+    "digest": "sha256:772fdb742d8ad91d14bb012caabbb34de64e2f476dbdc13afa139bc2eb65c5b7"
+  },
+  "policy": {
+    "digest": "sha256:ed7594e28d84b2ef645edeaf4b8ed59b884f6cde64951a0c29b8b28ac4bf46a4",
+    "id": "windanvil.opencodesupply.v1"
+  },
+  "receipt": {
+    "digest": "sha256:016239b3c8a720fcf3993fa8d01d95f14ce9c96d8db3edcd8137bee526af6421",
+    "id": "sha256:bbf6b17a0fae4adb39f2fe7bbb51c4976ff391d9127a51889b2c21a3c6392dab"
+  },
+  "schemaVersion": 1,
+  "subject": {
+    "identity": {
+      "digest": "sha256:06cee1821dcf9ad397f999cf1a4d8b89f2d696da9e52f7b819607fbff1b82664",
+      "name": "registry.opencode.de/l3montree/source-provenance-attestation-service-example"
+    },
+    "kind": "oci_artifact"
+  },
+  "verdict": {
+    "reason": "all required assertions passed",
+    "value": "PASS"
+  }
+}

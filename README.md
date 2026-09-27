@@ -26,8 +26,10 @@ WindAnvil Verifier keeps those questions separate:
 2. Does it name the artifact digest being evaluated?
 3. Does it bind the expected immutable source material?
 4. Is a recognized CycloneDX or SPDX SBOM present?
-5. Was the provenance signature independently verified?
-The default policy requires all five. A proven mismatch returns `FAIL`.
+5. Does that SBOM bind the same artifact digest?
+6. Was the provenance signature independently verified?
+
+The default policy requires all six. A proven mismatch returns `FAIL`.
 Missing evidence or unavailable verification capability returns `BLOCKED`.
 Only a complete set of required proofs returns `PASS`.
 
@@ -58,6 +60,19 @@ CycloneDX/SPDX recognition, and both keyless and public-key Cosign verification.
 The openCode path is tested against the service's public schema and documented
 verification boundary. This project is not affiliated with ZenDiS, openCode, or
 DevGuard.
+
+### Real openCode specimen
+
+[`specimens/opencode-source-provenance/`](specimens/opencode-source-provenance/)
+contains a public end-to-end specimen using openCode's own example project and
+registry artifact. The source-provenance signature verifies against the
+service's published public key; an independently generated CycloneDX SBOM binds
+the same immutable OCI digest; the resulting WindAnvil Assurance Record is
+`PASS`.
+
+The specimen includes both frozen evidence-integrity tests and a live replay
+script.
+
 ## Install
 
 Node.js 20 or later is required.
