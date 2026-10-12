@@ -23,7 +23,7 @@
     "pack:check": "npm pack --dry-run"
   },
   "dependencies": {
-    "windanvil-assurance-record": "git+https://github.com/mcc0nnell/windanvil-assurance-record.git#92b8c407aa41a0203bfcaadc6b6344bcce9602f8"
+    "windanvil-assurance-record": "git+https://github.com/mcc0nnell/windanvil-assurance-record.git#78817861a63fdce2a514216b453c364c9344b67c"
   },
   "keywords": [
     "software-supply-chain",

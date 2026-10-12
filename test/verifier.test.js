@@ -159,3 +159,72 @@ test("evidence digests bind provenance, SBOM, and verification metadata", () => 
   assert.notEqual(changed.evidenceDigests.sboms[0], result.evidenceDigests.sboms[0]);
   assert.notEqual(changed.record.digest, result.record.digest);
 });
+
+test("SLSA source URI alone cannot count as immutable source binding", () => {
+  const input = bundle({ expectedSource: { uri: SOURCE_URI } });
+  const result = verifySupplyChainBundle(input);
+  assert.equal(result.verdict, "FAIL");
+  assert.equal(result.assertions.find((x) => x.id === "source_bound")?.verdict, "FAIL");
+});
+
+test("SLSA source revision cannot be silently ignored", () => {
+  const input = bundle({
+    expectedSource: { uri: SOURCE_URI, digest: SOURCE, revision: "c".repeat(40) },
+  });
+  const result = verifySupplyChainBundle(input);
+  assert.equal(result.verdict, "FAIL");
+  assert.equal(result.assertions.find((x) => x.id === "source_bound")?.verdict, "FAIL");
+});
+
+test("SLSA source revision passes only when attested material binds it", () => {
+  const revision = "c".repeat(40);
+  const withRevision = provenance();
+  withRevision.predicate.buildDefinition.resolvedDependencies[0].digest.gitCommit = revision;
+  const input = bundle({
+    expectedSource: { uri: SOURCE_URI, digest: SOURCE, revision },
+    provenance: withRevision,
+  });
+  assert.equal(verifySupplyChainBundle(input).verdict, "PASS");
+  const wrongDigest = bundle({
+    expectedSource: { uri: SOURCE_URI, digest: "e".repeat(64), revision },
+    provenance: withRevision,
+  });
+  assert.equal(verifySupplyChainBundle(wrongDigest).verdict, "FAIL");
+});
+
+test("openCode source commit refuses missing revision or competing extra digest", () => {
+  const rev = "c".repeat(40);
+  const statement = {
+    _type: "https://in-toto.io/Statement/v1",
+    subject: [{ digest: { sha256: ARTIFACT } }],
+    predicateType: "https://gitlab.opencode.de/example/source-provenance",
+    predicate: { sourceDefinition: { sourceControl: {
+      commit: { uri: "https://example.invalid/repo", hash: rev },
+    } } },
+  };
+  const expected = { uri: "https://example.invalid/repo", revision: rev };
+  assert.equal(verifySupplyChainBundle(bundle({
+    provenance: statement, expectedSource: expected,
+  })).verdict, "PASS");
+  assert.equal(verifySupplyChainBundle(bundle({
+    provenance: statement, expectedSource: { uri: expected.uri },
+  })).verdict, "FAIL");
+  assert.equal(verifySupplyChainBundle(bundle({
+    provenance: statement,
+    expectedSource: { ...expected, digest: "sha256:" + "b".repeat(64) },
+  })).verdict, "FAIL");
+});
+
+test("SBOM evidence digest includes prototype-named JSON fields", () => {
+  const original = bundle().sboms[0];
+  const first = JSON.parse(JSON.stringify(original));
+  const second = JSON.parse(JSON.stringify(original));
+  Object.defineProperty(first, "__proto__", { value: { marker: "A" }, enumerable: true });
+  Object.defineProperty(second, "__proto__", { value: { marker: "B" }, enumerable: true });
+  const a = verifySupplyChainBundle(bundle({ sboms: [first] }));
+  const b = verifySupplyChainBundle(bundle({ sboms: [second] }));
+  assert.equal(a.verdict, "PASS");
+  assert.equal(b.verdict, "PASS");
+  assert.notEqual(a.evidenceDigests.sboms[0], b.evidenceDigests.sboms[0]);
+  assert.notEqual(a.record.digest, b.record.digest);
+});

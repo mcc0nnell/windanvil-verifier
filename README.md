@@ -80,7 +80,16 @@ Node.js 20 or later is required.
 ```sh
 npm install
 npm test
+
+# Explicitly opt into a live public-attestation regression on a test machine:
+WINDANVIL_LIVE_COSIGN=1 node --test test/live-cosign.test.js
 ```
+
+The ordinary suite is offline (live Cosign tests are skipped by default).
+The opt-in test contacts the public registry to check the preexisting
+openCode attestation with the operator-selected public key, then checks
+that a wrong key fails. It does not download image layers or exercise a
+bug-bounty target.
 
 The current package pins
 [`windanvil-assurance-record`](https://github.com/mcc0nnell/windanvil-assurance-record)
@@ -94,8 +103,42 @@ The latter matches openCode's Source Provenance Attestation Service boundary.
 ## CLI
 
 ```sh
-windanvil-verifier verify evidence-bundle.json
+# Keyless signing: independently choose and pin the expected signer identity and issuer.
+windanvil-verifier verify evidence-bundle.json \
+  --trusted-certificate-identity 'https://example.org/workflow' \
+  --trusted-certificate-issuer 'https://token.actions.githubusercontent.com'
+
+# Key-based signing: the trust anchor must be supplied by the verifier operator.
+windanvil-verifier verify evidence-bundle.json \
+  --trusted-public-key /trusted/path/cosign.pub \
+  --predicate-type slsaprovenance
 ```
+
+The CLI treats the evidence bundle as untrusted. It **ignores** any bundled
+`verification.provenanceSignature`, `requiredAssertions`, public key,
+certificate identity/issuer, predicate type, transparency-log override,
+and Cosign executable path. All six required assertions are enforced;
+a `PASS` requires actual Cosign verification under separately supplied
+operator trust settings. Without those settings it returns `BLOCKED`.
+The OCI reference in `bundle.cosign.reference` must equal
+`<artifact.name>@<artifact.digest>` using a canonical sha256 digest.
+Expected source identity must be **immutable**: a signed SLSA material must
+bind the expected source SHA-256 digest and, if a Git `revision` is supplied,
+also an attested `gitCommit` or `sha1`. URI-only matching cannot PASS.
+For the openCode source-provenance format, a Git revision must match the
+attested commit hash; conflicting digest-plus-revision constraints cannot be
+silently reduced. The operator still must independently choose/validate the
+intended source and artifact, rather than trusting bundle-provided expectations.
+Use `--ignore-transparency-log` only when independently justified for
+an operator-selected public key. An input's `expectedSource` still requires
+independent operator validation: this CLI does not establish source-policy
+trust merely by reading a bundle.
+
+The exported library function `verifySupplyChainBundle` is a lower-level
+evidence evaluator. Its `verification` argument represents a **caller-attested
+result**: callers must independently establish authenticity and trust.
+Do not pass untrusted JSON directly to the library and interpret `PASS`
+as independent cryptographic verification.
 
 Exit codes:
 
@@ -121,9 +164,7 @@ A minimal bundle looks like:
     { "bomFormat": "CycloneDX", "specVersion": "1.6", "components": [] }
   ],
   "cosign": {
-    "reference": "registry.example/app@sha256:<artifact digest>",
-    "certificateIdentity": "<expected workload identity>",
-    "certificateIssuer": "<expected OIDC issuer>"
+    "reference": "registry.example/app@sha256:<artifact digest>"
   }
 }
 ```

@@ -32,7 +32,10 @@ syft "docker:$REF" -o cyclonedx-json > "$tmp/sbom.cdx.json"
 
 jq --slurpfile sbom "$tmp/sbom.cdx.json"   '.sboms=$sbom | .generatedAt=(now|todateiso8601)'   "$SPEC/bundle.json" > "$tmp/bundle.json"
 
-PATH="$(dirname "$(command -v cosign)"):$PATH"   node cli.js verify "$tmp/bundle.json" > "$tmp/result.json"
+PATH="$(dirname "$(command -v cosign)"):$PATH" node cli.js verify "$tmp/bundle.json" \
+  --trusted-public-key "$SPEC/cosign.pub" \
+  --predicate-type "https://gitlab.opencode.de/open-code/badgebackend/source-provenance-attestation-service/schema/source-provenance-report-v1" \
+  --ignore-transparency-log > "$tmp/result.json"
 
 jq -e '.verdict == "PASS"' "$tmp/result.json" >/dev/null
 jq '{verdict, reason, recordDigest: .record.digest}' "$tmp/result.json"

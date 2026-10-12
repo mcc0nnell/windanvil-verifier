@@ -64,7 +64,10 @@ jq, then run:
 
 The live replay re-pulls the published tag, refuses to continue if it no longer
 resolves to the captured OCI digest, regenerates a CycloneDX SBOM, re-verifies
-the registry attestation, and requires a fresh WindAnvil PASS.
+the registry attestation, and requires a fresh WindAnvil PASS. It supplies the
+published verification key, custom predicate type and transparency-log choice
+from its **operator-controlled script**, rather than trusting those settings
+inside the input bundle.
 
 A live replay may produce a different Assurance Record digest because the fresh
 SBOM and observation timestamp are new evidence. The frozen record remains the

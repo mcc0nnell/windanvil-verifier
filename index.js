@@ -82,13 +82,26 @@ function provenanceMaterials(statement) {
 }
 
 export function sourceIsMaterial(statement, expectedSource) {
-  if (!expectedSource || typeof expectedSource.uri !== "string") return false;
+  if (!expectedSource || typeof expectedSource.uri !== "string" ||
+      !expectedSource.uri.trim()) return false;
+
+  // A URI alone is not an immutable source constraint. In particular,
+  // revisions must never be accepted if their value cannot be established
+  // from the statement being verified.
+  const revision = expectedSource.revision;
+  if (revision !== undefined &&
+      (typeof revision !== "string" || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i.test(revision))) {
+    return false;
+  }
+  if (!expectedSource.digest && revision === undefined) return false;
 
   const openCodeCommit = statement?.predicate?.sourceDefinition?.sourceControl?.commit;
   if (openCodeCommit?.uri) {
     if (openCodeCommit.uri !== expectedSource.uri) return false;
-    const wantedRevision = expectedSource.revision ?? expectedSource.digest;
-    return wantedRevision ? openCodeCommit.hash === wantedRevision : true;
+    // This statement exposes a commit hash, not an independent archive
+    // digest. Supplying both constraints must not silently discard one.
+    if (revision !== undefined && expectedSource.digest) return false;
+    return openCodeCommit.hash === (revision ?? expectedSource.digest);
   }
 
   const wantedDigest = expectedSource.digest
@@ -98,8 +111,11 @@ export function sourceIsMaterial(statement, expectedSource) {
 
   return provenanceMaterials(statement).some((material) => {
     if (material?.uri !== expectedSource.uri) return false;
-    if (!wantedDigest) return true;
-    return digestFromMap(material?.digest) === wantedDigest;
+    if (wantedDigest && digestFromMap(material?.digest) !== wantedDigest) return false;
+    if (revision !== undefined &&
+        material?.digest?.gitCommit !== revision &&
+        material?.digest?.sha1 !== revision) return false;
+    return true;
   });
 }
 export function detectSbom(value) {
